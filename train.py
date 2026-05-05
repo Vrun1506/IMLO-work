@@ -8,6 +8,8 @@ import torch
 
 training_losses = []
 validation_losses = []
+training_accuracies = []
+validation_accuracies = []
 
 
 raw_dataset = datasets.OxfordIIITPet(
@@ -130,10 +132,68 @@ pet_classifier = PetClassifier().to(device)
 nn_loss = nn.CrossEntropyLoss()
 
 # Add optimiser
-optimizer = torch.optim.Adam(pet_classifier.parameters(), lr=0.001)
+optimiser = torch.optim.Adam(pet_classifier.parameters(), lr=0.0001)
 
-# Checking if we are overfitting or not
-# plt.plot(training_losses, label = "Training Loss")
-# plt.plot(validation_losses, label = "Validation Loss")
-# plt.legend()
-# plt.show()
+epoch_limit = 30
+
+
+for epoch in range(epoch_limit):
+    pet_classifier.train()
+    total_epoch_loss = 0.0 # Work out average loss upon sending each batch of images to the model. 
+    
+    # Acc stats at end of each epoch
+    correct_train = 0
+    total_train = 0
+    
+    # Load images and labels
+    for images, labels in training_dataloader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        optimiser.zero_grad()
+
+        outputs = pet_classifier(images) # Send the images through the layers
+        batch_loss = nn_loss(outputs, labels)
+        batch_loss.backward() # Works out gradients of the loss
+        optimiser.step() # Weight update! Optimising at next batch.
+
+        total_epoch_loss = total_epoch_loss + batch_loss.item()
+        _, predicted = torch.max(outputs, dim=1)
+        total_train = total_train + labels.size(0)
+        correct_train = correct_train + (predicted == labels).sum().item()
+
+    # Stats calc
+    epoch_train_loss = total_epoch_loss / len(training_dataloader)
+    epoch_train_accuracy = 100.0 * correct_train / total_train
+    training_losses.append(epoch_train_loss)
+    training_accuracies.append(epoch_train_accuracy)
+
+    pet_classifier.eval()
+    running_validation_loss = 0.0
+    correct_val = 0
+    total_val = 0
+
+
+    # Basically the same process as above but for the validation part
+    with torch.no_grad(): # We don't wanna check or update the gradients or the weights here, so no need for backprop
+        for images, labels in validation_dataloader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = pet_classifier(images)
+            validation_loss = nn_loss(outputs, labels)
+            running_validation_loss = running_validation_loss + validation_loss.item()
+            _, predicted = torch.max(outputs, dim=1)
+            total_val = total_val + labels.size(0)
+            correct_val = correct_val + (predicted == labels).sum().item()
+
+    # Stats calc
+    epoch_val_loss = running_validation_loss / len(validation_dataloader)
+    epoch_val_accuracy = 100.0 * correct_val / total_val
+    validation_losses.append(epoch_val_loss)
+    validation_accuracies.append(epoch_val_accuracy)
+
+    print("\nEpoch "+str(epoch + 1)+"/"+str(epoch_limit)+"\nSummary:")
+    print("Training Loss: "+str(epoch_train_loss)+"%")
+    print("Training Accuracy: "+str(epoch_train_accuracy)+"%")
+    print("Validation Loss: "+str(epoch_val_loss)+"%")
+    print("Validation Accuracy: "+str(epoch_val_accuracy)+"%")
