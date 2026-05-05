@@ -1,4 +1,4 @@
-## Best performing version: 512 neurons and 0.3 dropout
+## Best performing version: 512 neurons and 0.1 dropout
 # Going to try and implement a ResNet architecture on top of this simple architecture to try and improve the accuracy. 
 # We skip the "vanishing gradient" problem by adding skip connections. 
 # Gonna look into how the DigitalOcean ResNet implementation works and then adapt it to this architecture and see if that makes a difference. 
@@ -117,7 +117,7 @@ class PetClassifier(nn.Module):
         self.fc1 = nn.Linear(512 * 14 * 14, 512) #14 represents the size of the grid after the pooling layers have hit. 512 is the number of filters in the final convolutional layer. 
         # 512 hidden neurons to learn and identify complex patt
         self.fc2 = nn.Linear(512, 37) # Second param matches no of sub-classes. 
-        self.dropout = nn.Dropout(p=0.3) # It randomly sets 30% of the input units to 0 at each update during training time, which helps prevent overfitting. I set it up in anticipation of overfitting as a precautionary measure. 
+        self.dropout = nn.Dropout(p=0.1) # It randomly sets 10% of the input units to 0 at each update during training time, which helps prevent overfitting. I set it up in anticipation of overfitting as a precautionary measure. 
 
     def forward(self, x):
         x = self.pool(F.relu(self.bn1(self.conv1(x)))) # 64 images get fed in as a batch (which is defined per our batch size). We initially start with three filters (RGB) and we apply conv, batch norm, relu activation, and max pooling to increase the number of filters 
@@ -209,9 +209,3 @@ for epoch in range(epoch_limit):
     print("Validation Loss: "+str(epoch_val_loss)+"%")
     print("Validation Accuracy: "+str(epoch_val_accuracy)+"%")
     print("Learning Rate: "+str(scheduler.get_last_lr()[0]))
-
-# Checking if we are overfitting or not
-# plt.plot(training_losses, label = "Training Loss")
-# plt.plot(validation_losses, label = "Validation Loss")
-# plt.legend()
-# plt.show()
