@@ -1,3 +1,9 @@
+## Best performing version: 512 neurons and 0.3 dropout
+# Going to try and implement a ResNet architecture on top of this simple architecture to try and improve the accuracy. 
+# We skip the "vanishing gradient" problem by adding skip connections. 
+# Gonna look into how the DigitalOcean ResNet implementation works and then adapt it to this architecture and see if that makes a difference. 
+
+
 from torchvision import datasets
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, random_split
@@ -12,17 +18,17 @@ training_accuracies = []
 validation_accuracies = []
 
 
-raw_dataset = datasets.OxfordIIITPet(
-    root="./data",
-    split="trainval",
-    target_types="category",
-    download=True,
-    transform=v2.Compose([
-        v2.Resize((224, 224)),
-        v2.ToImage(),
-        v2.ToDtype(torch.float32, scale=True)
-    ])
-)
+# raw_dataset = datasets.OxfordIIITPet
+#     root="./data",
+#     split="trainval",
+#     target_types="category",
+#     download=True,
+#     transform=v2.Compose([
+#         v2.Resize((224, 224)),
+#         v2.ToImage(),
+#         v2.ToDtype(torch.float32, scale=True)
+#     ])
+# )
 
 # stat_calc = DataLoader(raw_dataset, batch_size=32, shuffle=False)
 
@@ -42,7 +48,7 @@ raw_dataset = datasets.OxfordIIITPet(
 # print("Std:"+str(std))
 
 
-# I computed these values using the above code snippet, which I got from an online PyTorch forum. 
+# I computed these values using the above code snippet, which I got from a PyTorch forum.
 mean = [0.4783, 0.4459, 0.3957]
 std = [0.2254, 0.2223, 0.2240]
 
@@ -77,15 +83,15 @@ validation_dataset_full = datasets.OxfordIIITPet(
 training_images_num = int(0.8 * len(training_dataset_full))
 validation_images_num = int(0.2 * len(training_dataset_full))
 
-training_dataset, not_training = random_split(training_dataset_full, [training_images_num, validation_images_num])
-not_validation, validation_dataset = random_split(validation_dataset_full, [training_images_num, validation_images_num])
+training_dataset, _ = random_split(training_dataset_full, [training_images_num, validation_images_num])
+_, validation_dataset = random_split(validation_dataset_full, [training_images_num, validation_images_num])
 
 # Set batch size to 32. If we wanna speed up training, increase to 64 per the documentation recommendations.
-training_dataloader = DataLoader(training_dataset, batch_size=32, shuffle=True)
-validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
+training_dataloader = DataLoader(training_dataset, batch_size=64, shuffle=True)
+validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
 
-print("Size of training dataset: " + str(len(training_dataset)))
-print("Size of validation dataset: " + str(len(validation_dataset)))
+print("Size of training dataset: "+str(len(training_dataset)))
+print("Size of validation dataset: "+str(len(validation_dataset)))
 
 class PetClassifier(nn.Module):
     def __init__(self):
@@ -97,24 +103,24 @@ class PetClassifier(nn.Module):
         # This is to ensure that the values don't get too high or too litttle
         # After applying it through each filter, I'm applying max pooling to reduce spatial dimensions, which flattens the output.
         # It's a 2x2 sliding window which essentially is taking the max val in the window, and sliding it across the image. 
-        
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1) 
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
-        self.bn4 = nn.BatchNorm2d(256)
+        self.conv1 = nn.Conv2d(in_channels=3,   out_channels=64,  kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(256)
+        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(512)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(256 * 14 * 14, 512) #14 represents the size of the grid after the pooling layers have hit. 256 is the number of filters in the final convolutional layer. 
+
+        self.fc1 = nn.Linear(512 * 14 * 14, 512) #14 represents the size of the grid after the pooling layers have hit. 512 is the number of filters in the final convolutional layer. 
         # 512 hidden neurons to learn and identify complex patt
         self.fc2 = nn.Linear(512, 37) # Second param matches no of sub-classes. 
-        self.dropout = nn.Dropout(p=0.5) # It randomly sets 50% of the input units to 0 at each update during training time, which helps prevent overfitting. I set it up in anticipation of overfitting as a precautionary measure. 
+        self.dropout = nn.Dropout(p=0.3) # It randomly sets 30% of the input units to 0 at each update during training time, which helps prevent overfitting. I set it up in anticipation of overfitting as a precautionary measure. 
 
     def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x)))) # 32 images get fed in as a batch (which is defined per our batch sizeWe initially start with three filters (RGB) and we apply conv, batch norm, relu activation, and max pooling to increase the number of filters 
+        x = self.pool(F.relu(self.bn1(self.conv1(x)))) # 64 images get fed in as a batch (which is defined per our batch size). We initially start with three filters (RGB) and we apply conv, batch norm, relu activation, and max pooling to increase the number of filters 
         x = self.pool(F.relu(self.bn2(self.conv2(x))))
         x = self.pool(F.relu(self.bn3(self.conv3(x))))
         x = self.pool(F.relu(self.bn4(self.conv4(x))))
@@ -132,10 +138,13 @@ pet_classifier = PetClassifier().to(device)
 nn_loss = nn.CrossEntropyLoss()
 
 # Add optimiser
+# Tried to run it at 0.0002 but the validation accuracy and training accuracy was exploding all over the place lowkey. 
 optimiser = torch.optim.Adam(pet_classifier.parameters(), lr=0.0001)
 
-epoch_limit = 30
+# Cosine annealing smoothly decays the learning rate
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=30, eta_min=1e-5)
 
+epoch_limit = 30
 
 for epoch in range(epoch_limit):
     pet_classifier.train()
@@ -173,7 +182,6 @@ for epoch in range(epoch_limit):
     correct_val = 0
     total_val = 0
 
-
     # Basically the same process as above but for the validation part
     with torch.no_grad(): # We don't wanna check or update the gradients or the weights here, so no need for backprop
         for images, labels in validation_dataloader:
@@ -192,8 +200,18 @@ for epoch in range(epoch_limit):
     validation_losses.append(epoch_val_loss)
     validation_accuracies.append(epoch_val_accuracy)
 
+    # Update learning rate so that it decays more smoothly as we approach the end of training. 
+    scheduler.step()
+
     print("\nEpoch "+str(epoch + 1)+"/"+str(epoch_limit)+"\nSummary:")
     print("Training Loss: "+str(epoch_train_loss)+"%")
     print("Training Accuracy: "+str(epoch_train_accuracy)+"%")
     print("Validation Loss: "+str(epoch_val_loss)+"%")
     print("Validation Accuracy: "+str(epoch_val_accuracy)+"%")
+    print("Learning Rate: "+str(scheduler.get_last_lr()[0]))
+
+# Checking if we are overfitting or not
+# plt.plot(training_losses, label = "Training Loss")
+# plt.plot(validation_losses, label = "Validation Loss")
+# plt.legend()
+# plt.show()
