@@ -6,60 +6,26 @@
 
 from torchvision import datasets
 from torchvision.transforms import v2
-from torch.utils.data import DataLoader, random_split
-import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
 import torch.nn as nn
-import torch.nn.functional as F
 import torch
+from model import PetClassifier
 
 training_losses = []
-validation_losses = []
 training_accuracies = []
-validation_accuracies = []
-
-
-# raw_dataset = datasets.OxfordIIITPet
-#     root="./data",
-#     split="trainval",
-#     target_types="category",
-#     download=True,
-#     transform=v2.Compose([
-#         v2.Resize((224, 224)),
-#         v2.ToImage(),
-#         v2.ToDtype(torch.float32, scale=True)
-#     ])
-# )
-
-# stat_calc = DataLoader(raw_dataset, batch_size=32, shuffle=False)
-
-# mean = 0
-# std = 0
-
-# for images, _ in stat_calc:
-#     batch_samples = images.size(0)
-#     images = images.view(batch_samples, images.size(1), -1)
-#     mean = mean + images.mean(2).sum(0)
-#     std = std + images.std(2).sum(0)
-
-# mean = mean / len(stat_calc.dataset)
-# std = std / len(stat_calc.dataset)
-
-# print("Mean:"+str(mean))
-# print("Std:"+str(std))
-
 
 # I computed these values using the above code snippet, which I got from a PyTorch forum.
 mean = [0.4783, 0.4459, 0.3957]
 std = [0.2254, 0.2223, 0.2240]
 
 
-training_dataset_full = datasets.OxfordIIITPet(
+training_dataset = datasets.OxfordIIITPet(
     root="./data",
     split="trainval",
     target_types="category",
     download=True,
     transform=v2.Compose([
-        v2.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        v2.RandomResizedCrop(320, scale=(0.7, 1.0)),
         v2.RandomHorizontalFlip(),
         v2.RandomRotation(10),
         v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
@@ -68,66 +34,11 @@ training_dataset_full = datasets.OxfordIIITPet(
         v2.Normalize(mean=mean, std=std)
     ]))
 
-validation_dataset_full = datasets.OxfordIIITPet(
-    root="./data",
-    split="trainval",
-    target_types="category",
-    download=True,
-    transform=v2.Compose([
-        v2.Resize((224, 224)),
-        v2.ToImage(),
-        v2.ToDtype(torch.float32, scale=True),
-        v2.Normalize(mean=mean, std=std)
-    ]))
-
-training_images_num = int(0.8 * len(training_dataset_full))
-validation_images_num = int(0.2 * len(training_dataset_full))
-
-training_dataset, _ = random_split(training_dataset_full, [training_images_num, validation_images_num])
-_, validation_dataset = random_split(validation_dataset_full, [training_images_num, validation_images_num])
-
 # Set batch size to 32. If we wanna speed up training, increase to 64 per the documentation recommendations.
 training_dataloader = DataLoader(training_dataset, batch_size=64, shuffle=True)
-validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
 
-print("Size of training dataset: "+str(len(training_dataset)))
-print("Size of validation dataset: "+str(len(validation_dataset)))
+print("Size of training dataset: " + str(len(training_dataset)))
 
-class PetClassifier(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # The layers pass from layer to the next to the next so the out of one becomes the in of the next. 
-        # There are four layers and I'm doubling the number of filters so that it can identify more complex features as we move deeper into the architecture. 
-        # I chose a kernel size of three to represent the 3x3 filter that will be applied to the images. 
-        # From the guest lecture on the importance of standardisation and normalisation, I have applied batch normalisation after each convolutional layer.
-        # This is to ensure that the values don't get too high or too litttle
-        # After applying it through each filter, I'm applying max pooling to reduce spatial dimensions, which flattens the output.
-        # It's a 2x2 sliding window which essentially is taking the max val in the window, and sliding it across the image. 
-
-        self.conv1 = nn.Conv2d(in_channels=3,   out_channels=64,  kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(256)
-        self.conv4 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1)
-        self.bn4 = nn.BatchNorm2d(512)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        self.fc1 = nn.Linear(512 * 14 * 14, 512) #14 represents the size of the grid after the pooling layers have hit. 512 is the number of filters in the final convolutional layer. 
-        # 512 hidden neurons to learn and identify complex patt
-        self.fc2 = nn.Linear(512, 37) # Second param matches no of sub-classes. 
-        self.dropout = nn.Dropout(p=0.1) # It randomly sets 10% of the input units to 0 at each update during training time, which helps prevent overfitting. I set it up in anticipation of overfitting as a precautionary measure. 
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x)))) # 64 images get fed in as a batch (which is defined per our batch size). We initially start with three filters (RGB) and we apply conv, batch norm, relu activation, and max pooling to increase the number of filters 
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = self.pool(F.relu(self.bn4(self.conv4(x))))
-        x = torch.flatten(x, 1)
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
-        return x
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
@@ -135,11 +46,11 @@ print(f"Using {device} device")
 pet_classifier = PetClassifier().to(device)
 
 # Add loss function
-nn_loss = nn.CrossEntropyLoss()
+nn_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
 
 # Add optimiser
 # Tried to run it at 0.0002 but the validation accuracy and training accuracy was exploding all over the place lowkey. 
-optimiser = torch.optim.Adam(pet_classifier.parameters(), lr=0.0001)
+optimiser = torch.optim.AdamW(pet_classifier.parameters(), lr=0.0002, weight_decay=1e-2)
 
 # Cosine annealing smoothly decays the learning rate
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=30, eta_min=1e-5)
@@ -149,11 +60,11 @@ epoch_limit = 30
 for epoch in range(epoch_limit):
     pet_classifier.train()
     total_epoch_loss = 0.0 # Work out average loss upon sending each batch of images to the model. 
-    
+
     # Acc stats at end of each epoch
     correct_train = 0
     total_train = 0
-    
+
     # Load images and labels
     for images, labels in training_dataloader:
         images = images.to(device)
@@ -177,35 +88,13 @@ for epoch in range(epoch_limit):
     training_losses.append(epoch_train_loss)
     training_accuracies.append(epoch_train_accuracy)
 
-    pet_classifier.eval()
-    running_validation_loss = 0.0
-    correct_val = 0
-    total_val = 0
-
-    # Basically the same process as above but for the validation part
-    with torch.no_grad(): # We don't wanna check or update the gradients or the weights here, so no need for backprop
-        for images, labels in validation_dataloader:
-            images = images.to(device)
-            labels = labels.to(device)
-            outputs = pet_classifier(images)
-            validation_loss = nn_loss(outputs, labels)
-            running_validation_loss = running_validation_loss + validation_loss.item()
-            _, predicted = torch.max(outputs, dim=1)
-            total_val = total_val + labels.size(0)
-            correct_val = correct_val + (predicted == labels).sum().item()
-
-    # Stats calc
-    epoch_val_loss = running_validation_loss / len(validation_dataloader)
-    epoch_val_accuracy = 100.0 * correct_val / total_val
-    validation_losses.append(epoch_val_loss)
-    validation_accuracies.append(epoch_val_accuracy)
-
     # Update learning rate so that it decays more smoothly as we approach the end of training. 
     scheduler.step()
 
-    print("\nEpoch "+str(epoch + 1)+"/"+str(epoch_limit)+"\nSummary:")
-    print("Training Loss: "+str(epoch_train_loss)+"%")
-    print("Training Accuracy: "+str(epoch_train_accuracy)+"%")
-    print("Validation Loss: "+str(epoch_val_loss)+"%")
-    print("Validation Accuracy: "+str(epoch_val_accuracy)+"%")
-    print("Learning Rate: "+str(scheduler.get_last_lr()[0]))
+    print("\nEpoch " + str(epoch + 1) + "/" + str(epoch_limit) + "\nSummary:")
+    print("Training Loss: " + str(epoch_train_loss))
+    print("Training Accuracy: " + str(epoch_train_accuracy) + "%")
+    print("Learning Rate: " + str(scheduler.get_last_lr()[0]))
+
+torch.save(pet_classifier.state_dict(), "model.pth")
+print("\nModel saved to model.pth")
