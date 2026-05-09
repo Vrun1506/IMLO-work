@@ -35,3 +35,5 @@ https://www.youtube.com/watch?v=uoVR3jTw1YI
 https://debuggercafe.com/building-resnets-from-scratch-using-pytorch/
 
 https://docs.pytorch.org/docs/2.11/generated/torch.optim.lr_scheduler.OneCycleLR.html
+
+https://dl.acm.org/doi/epdf/10.1145/3606043.3606086
