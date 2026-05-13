@@ -1,21 +1,12 @@
-Need to plan out the layers for the neural network architecture and identifying the discernible features so we can work from there and figure out how to actually set up the neural network and the layers itself.
+Saw that there was some stuff about using trimap in the discussion. 
 
-Plan a four layer implementation approach based off the PyTorch docs.
+Might have a lil look into that and see what we can get together. 
 
-Start with a smaller filter like 3x3 and observe what happens with our accuracy. 
+Feel like it would probs be useful for the bits and pieces at the start but honestly don't really have much of a clue how I'm gonna implement it. 
 
-I'm going to start the convolutional layer at 32 filters and then increase it by doubling the number of filters in each convolutional layer going forwards to 64, 128, 256
+Two potential ideas: I could somehow integrate it into the RGB values and essentially use four channels instead of three in the starting convoluion. 
 
-Going to use ReLU as the activation function to reset negatives to 0 after each convolutional layer. 
+I can potentially try and find a way to get rid of any noise in the image itself because I imagine we have some wastage because of the backgrounds and stuff. 
 
-Look into how to implement dropout and whether we need to change anything in our code to be able to implement it. 
+Now that I have the block, I need to integrate the blocks into the implementation and see where it gets me. 
 
-PyTorch docs uses SGD optimiser, but I'm going to use Adam for the interest of training time, and the fact that it adapts the learning rate better than SGD. 
-
-Guest lecture talked about batch normalisation and standardisation to minimise overfitting and accelerate model training.
-
-Need to work out how I'm going to work out the mean and standard deviation with tensor data because it's multi-dimensional, so I need to either get them all into a single tensor and then work it out, but there's way too many images for this to be viable. 
-
-See if there's a PyTorch function to work out the mean like there is in Pandas dataframes and iterate through the set to work out the average. 
-
-Look through forums as probs a common thing. 
