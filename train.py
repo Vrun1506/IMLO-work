@@ -1,14 +1,13 @@
 ## Best performing version: 512 neurons and 0.1 dropout
-# Going to try and implement a ResNet architecture on top of this simple architecture to try and improve the accuracy. 
-# We skip the "vanishing gradient" problem by adding skip connections. 
-# Gonna look into how the DigitalOcean ResNet implementation works and then adapt it to this architecture and see if that makes a difference. 
-
+# Going to try and implement a ResNet architecture on top of this simple architecture to try and improve the accuracy.
+# We skip the "vanishing gradient" problem by adding skip connections.
+# Gonna look into how the DigitalOcean ResNet implementation works and then adapt it to this architecture and see if that makes a difference.
 
 from torchvision import datasets
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from model import PetClassifier
 
 training_losses = []
@@ -18,14 +17,13 @@ training_accuracies = []
 mean = [0.4783, 0.4459, 0.3957]
 std = [0.2254, 0.2223, 0.2240]
 
-
 training_dataset = datasets.OxfordIIITPet(
     root="./data",
     split="trainval",
     target_types="category",
     download=True,
     transform=v2.Compose([
-        v2.RandomResizedCrop(320, scale=(0.7, 1.0)),
+        v2.RandomResizedCrop(224, scale=(0.7, 1.0)),
         v2.RandomHorizontalFlip(),
         v2.RandomRotation(10),
         v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
@@ -38,7 +36,7 @@ training_dataset = datasets.OxfordIIITPet(
 training_dataloader = DataLoader(training_dataset, batch_size=64, shuffle=True)
 
 print("Size of training dataset: " + str(len(training_dataset)))
-
+print("No validation set — all trainval images used for training.")
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
@@ -49,7 +47,7 @@ pet_classifier = PetClassifier().to(device)
 nn_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
 
 # Add optimiser
-# Tried to run it at 0.0002 but the validation accuracy and training accuracy was exploding all over the place lowkey. 
+# Tried to run it at 0.0002 but the validation accuracy and training accuracy was exploding all over the place lowkey.
 optimiser = torch.optim.AdamW(pet_classifier.parameters(), lr=0.0002, weight_decay=1e-2)
 
 # Cosine annealing smoothly decays the learning rate
@@ -59,7 +57,7 @@ epoch_limit = 30
 
 for epoch in range(epoch_limit):
     pet_classifier.train()
-    total_epoch_loss = 0.0 # Work out average loss upon sending each batch of images to the model. 
+    total_epoch_loss = 0.0 # Work out average loss upon sending each batch of images to the model.
 
     # Acc stats at end of each epoch
     correct_train = 0
@@ -88,13 +86,13 @@ for epoch in range(epoch_limit):
     training_losses.append(epoch_train_loss)
     training_accuracies.append(epoch_train_accuracy)
 
-    # Update learning rate so that it decays more smoothly as we approach the end of training. 
+    # Update learning rate so that it decays more smoothly as we approach the end of training.
     scheduler.step()
 
-    print("\nEpoch " + str(epoch + 1) + "/" + str(epoch_limit) + "\nSummary:")
-    print("Training Loss: " + str(epoch_train_loss))
-    print("Training Accuracy: " + str(epoch_train_accuracy) + "%")
-    print("Learning Rate: " + str(scheduler.get_last_lr()[0]))
+    print("\nEpoch "+str(epoch + 1)+"/"+str(epoch_limit)+"\nSummary:")
+    print("Training Loss: "+str(epoch_train_loss))
+    print("Training Accuracy: "+str(epoch_train_accuracy)+"%")
+    print("Learning Rate: "+str(scheduler.get_last_lr()[0]))
 
 torch.save(pet_classifier.state_dict(), "model.pth")
-print("\nModel saved to model.pth")
+print("\nModel saved!")
