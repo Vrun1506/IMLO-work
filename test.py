@@ -16,20 +16,19 @@ print(f"Using {device} device")
 pet_classifier = PetClassifier().to(device)
 pet_classifier.load_state_dict(torch.load("model.pth"))
 
-
 test_dataset = datasets.OxfordIIITPet(
     root="./data",
     split="test",
     target_types="category",
     download=True,
     transform=v2.Compose([
-        v2.Resize((224, 224)),
+        v2.Resize((320, 320)),
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         v2.Normalize(mean=mean, std=std)
     ]))
 
-test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 print("Size of test dataset: " + str(len(test_dataset)))
 
 pet_classifier.eval()
