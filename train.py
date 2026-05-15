@@ -12,7 +12,7 @@ training_accuracies = []
 mean = [0.4783, 0.4459, 0.3957]
 std  = [0.2254, 0.2223, 0.2240]
 
-IMAGE_SIZE = 224 # Size update here. Stupidly annoying to change sizes every 5 seconds.
+IMAGE_SIZE = 224 # Size update here. Stupidly annoying to change sizes every 5 seconds. Should've just trusted my research over trying to see if increasing the size would lead to higher acucracy.
 
 class MaskedPetDataset(Dataset):
     # Looked at the discussion on VLE and got the idea of using the trimap stuff.
@@ -34,6 +34,7 @@ class MaskedPetDataset(Dataset):
 
     def __getitem__(self, index):
         image, (label, trimap) = self.dataset[index]
+
         image = v2.functional.to_image(image)
         trimap = v2.functional.to_image(trimap)
 
@@ -42,12 +43,14 @@ class MaskedPetDataset(Dataset):
 
         image = combined[:3]
         trimap = combined[3:]
-        image = self.colour_transform(image) # Only applying the colour transform to the image dataset so it don't mess with the trimap data. 
+        image = self.colour_transform(image) # Only applying the colour transform to the image dataset so it don't mess with the trimap data.
 
         # This applies the mask to the image to basically filter out the background and ensure that we only get the outline of the doggo or the cat!
         trimap_float = trimap.float()
         mask = (torch.round(trimap_float) != 2).float()
+
         image = image * mask
+
         return image, label
 
 
@@ -84,14 +87,14 @@ print(f"Using {device} device")
 pet_classifier = PetClassifier().to(device)
 
 # Add loss function.
-nn_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
+nn_loss = nn.CrossEntropyLoss()
 
 # Add optimiser.
-optimiser = torch.optim.AdamW(pet_classifier.parameters(), lr=0.003, weight_decay=0.02)
+optimiser = torch.optim.AdamW(pet_classifier.parameters(), lr=5e-4, weight_decay=0.02)
 
 epoch_limit = 30
 # I swapped to a OneCycleLR over just regular Cosine Annealing and found that I was getting better results.
-scheduler = torch.optim.lr_scheduler.OneCycleLR(optimiser,max_lr=0.003,epochs=epoch_limit,steps_per_epoch=len(training_dataloader),pct_start=0.2,anneal_strategy='cos',)
+scheduler = torch.optim.lr_scheduler.OneCycleLR(optimiser, max_lr=5e-4, epochs=epoch_limit, steps_per_epoch=len(training_dataloader), pct_start=0.2, anneal_strategy='cos',)
 
 for epoch in range(epoch_limit):
     pet_classifier.train()

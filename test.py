@@ -3,14 +3,13 @@ from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
-from model import PetClassifier
 
 mean = [0.4783, 0.4459, 0.3957]
 std  = [0.2254, 0.2223, 0.2240]
 
 IMAGE_SIZE = 224
 
-# Basically the same as the one in training, but without the test aug because obvs that ain't allowed (other than resize + tensor stuff). 
+# Basically the same as the one in training, but without the test aug because obvs that ain't allowed (other than resize + tensor stuff).
 class MaskedPetDataset(Dataset):
     def __init__(self, root, split, image_transform, mask_size):
         self.dataset = datasets.OxfordIIITPet(
@@ -28,7 +27,7 @@ class MaskedPetDataset(Dataset):
     def __getitem__(self, index):
         image, (label, trimap) = self.dataset[index]
         image = self.image_transform(image)
-        trimap = v2.functional.resize(trimap, [self.mask_size, self.mask_size])
+        trimap = v2.functional.resize(trimap, [self.mask_size, self.mask_size],interpolation=v2.InterpolationMode.NEAREST)
         trimap_tensor = v2.functional.to_dtype(v2.functional.to_image(trimap), torch.float32, scale=False)
         mask = (trimap_tensor != 2).float()
         image = image * mask
