@@ -3,6 +3,7 @@ from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
+from model import PetClassifier
 
 mean = [0.4783, 0.4459, 0.3957]
 std  = [0.2254, 0.2223, 0.2240]
