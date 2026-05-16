@@ -33,37 +33,37 @@ class PetClassifier(nn.Module):
     def __init__(self, num_classes=37):
         super().__init__()
 
-        self.stem_fine = nn.Conv2d(3, 24, kernel_size=3, stride=2, padding=1, bias=False) # 3x3
-        self.stem_broad = nn.Conv2d(3, 24, kernel_size=5, stride=2, padding=2, bias=False) # 5x5
-        self.stem_mix = nn.Conv2d(48, 48, kernel_size=1, bias=False) # Combine the two filters into one massive oe.
-        self.stem_bn = nn.BatchNorm2d(48)
+        self.stem_fine = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False) # 3x3
+        self.stem_broad = nn.Conv2d(3, 32, kernel_size=5, stride=2, padding=2, bias=False) # 5x5
+        self.stem_mix = nn.Conv2d(64, 64, kernel_size=1, bias=False) # Combine the two filters into one massive oe.
+        self.stem_bn = nn.BatchNorm2d(64)
         self.stem_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     # block strct rn = 2,2,3,2, but might increase/decrease as I see fit.
         self.stage1 = nn.Sequential(
-            ResNetBlock(48, 48, stride=1),
-            ResNetBlock(48, 48, stride=1),
+            ResNetBlock(64, 64, stride=1),
+            ResNetBlock(64, 64, stride=1),
         )
 
         self.stage2 = nn.Sequential(
-            ResNetBlock(48, 96, stride=2),
-            ResNetBlock(96, 96, stride=1),
+            ResNetBlock(64, 128, stride=2),
+            ResNetBlock(128, 128, stride=1),
         )
 
         self.stage3 = nn.Sequential(
-            ResNetBlock(96, 192, stride=2),
-            ResNetBlock(192, 192, stride=1),
-            ResNetBlock(192, 192, stride=1),
+            ResNetBlock(128, 256, stride=2),
+            ResNetBlock(256, 256, stride=1),
+            ResNetBlock(256, 256, stride=1),
         )
 
         self.stage4 = nn.Sequential(
-            ResNetBlock(192, 384, stride=2),
-            ResNetBlock(384, 384, stride=1),
+            ResNetBlock(256, 512, stride=2),
+            ResNetBlock(512, 512, stride=1),
         )
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.dropout1 = nn.Dropout(p=0.3) # Inrceased it to 30%
-        self.fc1 = nn.Linear(384, num_classes)  # 37 breeds
+        self.fc1 = nn.Linear(512, num_classes)  # 37 breeds
 
     def forward(self, x):
         fine = self.stem_fine(x)
