@@ -10,16 +10,17 @@ std  = [0.2254, 0.2223, 0.2240]
 
 IMAGE_SIZE = 224
 
-# Basically the same as the one in training, but without the test aug because obvs that ain't allowed (other than resize + tensor stuff).
+# Basically the same as the one in training, but without the training aug because obvs that ain't allowed (other than resize + tensor stuff).
 class MaskedPetDataset(Dataset):
-    def __init__(self, root, split, image_transform, mask_size):
+    def __init__(self, root, split, spatial_transform, colour_transform, mask_size):
         self.dataset = datasets.OxfordIIITPet(
             root=root,
             split=split,
             target_types=["category", "segmentation"],
             download=True,
         )
-        self.image_transform = image_transform
+        self.spatial_transform = spatial_transform
+        self.colour_transform = colour_transform
         self.mask_size = mask_size
 
     def __len__(self):
@@ -27,13 +28,33 @@ class MaskedPetDataset(Dataset):
 
     def __getitem__(self, index):
         image, (label, trimap) = self.dataset[index]
-        image = self.image_transform(image)
-        trimap = v2.functional.resize(trimap, [self.mask_size, self.mask_size],interpolation=v2.InterpolationMode.NEAREST)
-        trimap_tensor = v2.functional.to_dtype(v2.functional.to_image(trimap), torch.float32, scale=False)
-        mask = (trimap_tensor != 2).float()
+
+        image = v2.functional.to_image(image)
+        trimap = v2.functional.to_image(trimap)
+
+        combined = torch.cat([image, trimap], dim=0)
+        combined = self.spatial_transform(combined)
+
+        image = combined[:3]
+        trimap = combined[3:]
+        image = self.colour_transform(image)
+
+        trimap_float = trimap.float()
+        mask = (torch.round(trimap_float) != 2).float()
+
         image = image * mask
+
         return image, label
 
+
+test_spatial = v2.Compose([
+    v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+])
+
+test_colour = v2.Compose([
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean=mean, std=std),
+])
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
@@ -44,7 +65,8 @@ pet_classifier.load_state_dict(torch.load("model.pth"))
 test_dataset = MaskedPetDataset(
     root="./data",
     split="test",
-    image_transform=v2.Compose([v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),v2.ToImage(),v2.ToDtype(torch.float32, scale=True),v2.Normalize(mean=mean, std=std),]),
+    spatial_transform=test_spatial,
+    colour_transform=test_colour,
     mask_size=IMAGE_SIZE,
 )
 
