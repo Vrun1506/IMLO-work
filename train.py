@@ -99,7 +99,7 @@ optimiser = torch.optim.AdamW(pet_classifier.parameters(), lr=5e-4, weight_decay
 
 epoch_limit = 30
 # I swapped to a OneCycleLR over just regular Cosine Annealing and found that I was getting better results.
-scheduler = torch.optim.lr_scheduler.OneCycleLR(optimiser, max_lr=5e-4, epochs=epoch_limit, steps_per_epoch=len(training_dataloader), pct_start=0.2, anneal_strategy='cos',)
+scheduler = torch.optim.lr_scheduler.OneCycleLR(optimiser, max_lr=5e-4, epochs=epoch_limit, steps_per_epoch=len(training_dataloader), pct_start=0.2, anneal_strategy='cos')
 
 for epoch in range(epoch_limit):
     pet_classifier.train()
