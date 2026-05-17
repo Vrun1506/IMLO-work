@@ -62,6 +62,7 @@ class PetClassifier(nn.Module):
         )
 
         self.gap = nn.AdaptiveAvgPool2d(1)
+        self.flatten = nn.Flatten()
         self.dropout1 = nn.Dropout(p=0.3) # Inrceased it to 30%
         self.fc1 = nn.Linear(512, num_classes)  # 37 breeds
 
@@ -78,7 +79,7 @@ class PetClassifier(nn.Module):
         x = self.stage4(x)
 
         x = self.gap(x)
-        x = torch.flatten(x, 1)
+        x = self.flatten(x)
 
         x = self.dropout1(x)
         x = self.fc1(x)
