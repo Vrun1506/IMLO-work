@@ -7,6 +7,7 @@ from model import PetClassifier
 
 training_losses = []
 training_accuracies = []
+total_params = 0
 
 # Computed on the image dataset itself and found the code for it on a PyTorch forum.
 mean = [0.4783, 0.4459, 0.3957]
@@ -85,6 +86,10 @@ device = torch.accelerator.current_accelerator().type if torch.accelerator.is_av
 print(f"Using {device} device")
 
 pet_classifier = PetClassifier().to(device)
+
+for param in pet_classifier.parameters():
+    total_params += param.numel()
+print("Total parameters in the model: " + str(total_params))
 
 # Add loss function.
 nn_loss = nn.CrossEntropyLoss()
