@@ -34,12 +34,19 @@ class MaskedPetDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
+        # When we call the dataset object, it loads the images in the batch using the __getitem__ function.
+        # I have inherited said method and basically tuned it so that it applies the mask to get only the desired parts. 
+        # Basically, this fucntion is going to apply a mask to the image to filter ouot the noise in the backrgound 
+        # So that the iomage trains better and the model focusses solely on the pet and its outline. 
+        # Can't apply a colour transform to the trimap data because it will mess with the pixel values.
+        # We need the pixels to figure out the regions of the image that is gonna be masked to be removed. 
+        # Spatial is OK with both becuase we need to apply this to both the regular image set and the trimap data for consistency. 
         image, (label, trimap) = self.dataset[index]
 
-        image = v2.functional.to_image(image)
-        trimap = v2.functional.to_image(trimap)
+        image = v2.functional.to_image(image) # Convert to tensor and normalise image data
+        trimap = v2.functional.to_image(trimap) # Convert to tensor and normalise trimap data
 
-        combined = torch.cat([image, trimap], dim=0)
+        combined = torch.cat([image, trimap], dim=0) # Combining everything in to a single tensor so we can apply the same spatial transform
         combined = self.spatial_transform(combined)
 
         image = combined[:3]
@@ -47,10 +54,10 @@ class MaskedPetDataset(Dataset):
         image = self.colour_transform(image) # Only applying the colour transform to the image dataset so it don't mess with the trimap data.
 
         # This applies the mask to the image to basically filter out the background and ensure that we only get the outline of the doggo or the cat!
-        trimap_float = trimap.float()
-        mask = (torch.round(trimap_float) != 2).float()
+        trimap_float = trimap.float() # Convert the trimap to float to make it easier to work with and apply the mask.
+        mask = (torch.round(trimap_float) != 2).float() # Create a mask where pixels that are not background (2) are set to 1, and background pixels are set to 0.
 
-        image = image * mask
+        image = image * mask # Masking! Get rid of the noise. 
 
         return image, label
 
@@ -111,13 +118,13 @@ for epoch in range(epoch_limit):
 
     # Load images and labels
     for images, labels in training_dataloader:
-        images = images.to(device)
+        images = images.to(device) # Send images and labels to GPU
         labels = labels.to(device)
 
-        optimiser.zero_grad()
+        optimiser.zero_grad() # Zero grads before backprop
 
         outputs = pet_classifier(images) # Send the images through the layers
-        batch_loss = nn_loss(outputs, labels)
+        batch_loss = nn_loss(outputs, labels) # Prediction vs label comparison to get batch loss
         batch_loss.backward() # Works out gradients of the loss
         torch.nn.utils.clip_grad_norm_(pet_classifier.parameters(), 5.0) # Stop grads getting HUGE!
         optimiser.step() # Weight update! Optimising at next batch.
