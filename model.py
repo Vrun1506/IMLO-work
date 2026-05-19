@@ -79,7 +79,7 @@ class PetClassifier(nn.Module):
         x = self.stage4(x)
 
         x = self.gap(x)
-        x = self.flatten(x)
+        x = torch.flatten(x, 1)
 
         x = self.dropout1(x)
         x = self.fc1(x)
