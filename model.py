@@ -6,13 +6,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-
-# When it came to understand how ResNet really works, I found this link here to be extremely helpful with the whole architectural breakdown:
-
-# https://www.medium.com/analytics-vidhya/resnet-understand-and-implement-from-scratch-d0eb9725e0db
-
-# The architectural breakdown on this page was super helpful to understand how the skip connections work and the structure of the block. 
-# I didn't even need to look at their code on the page! Just the explanations were enough. 
+# First link in the README.md helped me understand how ResNet works and then I built this implementation based off my understanding of the architecture.
+# The article explained it so well, I didn't even need their code for how it works. 
+# Once I created the block, I then adapted my channel sizes and layers that I originally had in my vanilla CNN to fit the ResNet architecture. 
+# I increased the channel sizes from 24 to 32 as the starting point in the stem. 
 
 class ResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
