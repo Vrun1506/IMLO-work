@@ -1,9 +1,11 @@
+# Please note that in my README.md, I have attached all of the links to the resources that I have opened/briefly consulted to help me with making a decision on some things, but not necessarily copied exactly in the code.
+
 from torchvision import datasets
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
-from model import PetClassifier
+from model import BreedClassifier
 
 training_losses = []
 training_accuracies = []
@@ -17,6 +19,8 @@ IMAGE_SIZE = 224 # Size update here. Stupidly annoying to change sizes every 5 s
 
 class MaskedPetDataset(Dataset):
     # Looked at the discussion on VLE and got the idea of using the trimap stuff.
+    # Got the basic outline with regards to the blueprint of the types of methods I should look to implement using this link: https://www.stackoverflow.com/questions/77997000/cant-apply-same-transform-to-image-and-mask-for-data-augmentation
+    # I then did this implementation by myself after understand the expectation of what it's going to do, and built around my initial plan. 
     # Applying a mask to essentially get the pet and the outline. 1 = pet, 2 = background, 3 = pet outline, and we need 1 and 3.
     # After we identify what the pixel is in the image, we then convert the pixel into a float if it's not the background and then use that as a mask to get the outline+pet data.
     def __init__(self, root, split, spatial_transform, colour_transform, mask_size):
@@ -56,6 +60,7 @@ class MaskedPetDataset(Dataset):
         # This applies the mask to the image to basically filter out the background and ensure that we only get the outline of the doggo or the cat!
         trimap_float = trimap.float() # Convert the trimap to float to make it easier to work with and apply the mask.
         mask = (torch.round(trimap_float) != 2).float() # Create a mask where pixels that are not background (2) are set to 1, and background pixels are set to 0.
+        # Processes all of the pixels in the entire batch to create a mask to retreieve the outline and pet to then classify the breed.
 
         image = image * mask # Masking! Get rid of the noise. 
 
@@ -92,7 +97,7 @@ print("Size of training dataset: " + str(len(training_dataset)))
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
 
-pet_classifier = PetClassifier().to(device)
+pet_classifier = BreedClassifier().to(device)
 
 for param in pet_classifier.parameters():
     total_params += param.numel()

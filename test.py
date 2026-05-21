@@ -1,10 +1,15 @@
+# Please note that in my README.md, I have attached all of the links to the resources that I have opened/briefly consulted to help me with making a decision on some things, but not necessarily copied exactly in the code.
+
 from torchvision import datasets
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
-from model import PetClassifier
+from model import BreedClassifier
 
+# https://discuss.pytorch.org/t/computing-the-mean-and-std-of-dataset/34949
+# To compute these custom values, I ran the code found in this forum. 
+# I obviously could have used the standard ImageNet values, but I thought that using more precise values would improve my model's performance, even if it's minor. 
 mean = [0.4783, 0.4459, 0.3957]
 std  = [0.2254, 0.2223, 0.2240]
 
@@ -25,6 +30,7 @@ class MaskedPetDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
 
     def __getitem__(self, index):
         image, (label, trimap) = self.dataset[index]
@@ -48,18 +54,20 @@ class MaskedPetDataset(Dataset):
 
 
 test_spatial = v2.Compose([
-    v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    v2.Resize((IMAGE_SIZE, IMAGE_SIZE)), # No other augmentations allowed in test
 ])
 
 test_colour = v2.Compose([
-    v2.ToDtype(torch.float32, scale=True),
+    v2.ToDtype(torch.float32, scale=True), #No other augs allowed in test. 
     v2.Normalize(mean=mean, std=std),
 ])
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
 
-pet_classifier = PetClassifier().to(device)
+
+# Load saved model from train
+pet_classifier = BreedClassifier().to(device)
 pet_classifier.load_state_dict(torch.load("model.pth"))
 
 test_dataset = MaskedPetDataset(
@@ -70,6 +78,7 @@ test_dataset = MaskedPetDataset(
     mask_size=IMAGE_SIZE,
 )
 
+# Load test set
 test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 print("Size of test dataset: " + str(len(test_dataset)))
 
@@ -79,6 +88,7 @@ running_test_loss = 0.0
 correct_test = 0
 total_test = 0
 
+# Run through test set and observe accuracy and loss. 
 with torch.no_grad(): # No gradient updates now.
     for images, labels in test_dataloader:
         images = images.to(device)
